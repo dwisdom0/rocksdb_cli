@@ -1,0 +1,9 @@
+# Vim
+*.swp
+
+# Rust
+/target
+
+# RocksDB
+*.rocksdb
+
