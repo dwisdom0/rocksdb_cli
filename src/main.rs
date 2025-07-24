@@ -1,5 +1,6 @@
 use rocksdb::{DB, IteratorMode, Options};
 use std::env;
+use std::fs;
 use std::io::{self, Write};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,11 +19,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // default to read-only
-    let mut db = DB::open_for_read_only(&Options::default(), db_path.clone(), false)
-        .expect("Failed to open DB in read-only mode");
-    if read_write {
-        db = DB::open_default(db_path).expect("Failed to open DB in read-write mode");
+    let db;
+    if !fs::exists(&db_path).unwrap() && !read_write {
+        return Err(
+            "Since the database doesn't exist yet, you must pass the --rw flag to open the database in read-write mode".into(),
+        );
+    } else if fs::exists(&db_path).unwrap() && !read_write {
+        db = DB::open_for_read_only(&Options::default(), db_path.clone(), false)
+            .expect("Failed to open DB in read-only mode");
+    } else if read_write {
+        let mut opts = Options::default();
+        opts.create_if_missing(true);
+        db = DB::open(&opts, db_path).expect("Failed to open DB in read-write mode");
+    } else {
+        unreachable!()
     }
 
     loop {
@@ -43,7 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             ["put", key, value] => {
                 if !read_write {
-                    println!("Error: Cannot put because the database was not opened in read-write mode");
+                    println!(
+                        "Error: Cannot put because the database was not opened in read-write mode"
+                    );
                     continue;
                 }
                 if let Err(e) = db.put(key, value) {
