@@ -57,6 +57,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{}", String::from_utf8_lossy(&key));
                 }
             }
+            ["scan", lim] => {
+                let mut i = 0;
+                let limit = lim.parse::<u64>().unwrap();
+                println!("First {} keys in the database:", limit);
+                for item in db.iterator(IteratorMode::Start) {
+                    i += 1;
+                    if i > limit {
+                        break;
+                    }
+                    let (key, _value) = item?;
+                    println!("{}", String::from_utf8_lossy(&key));
+                }
+            }
             ["count"] => {
                 let mut i = 0;
                 for item in db.iterator(IteratorMode::Start) {
@@ -64,10 +77,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     i += 1;
                 }
                 println!("Total number of keys: {}", i);
-            },
+            }
             ["exit"] => break Ok(()),
             ["q"] => break Ok(()),
-            _ => println!("Usage: get <key> | put <key> <value> | scan | exit"),
+            _ => println!("Usage: get <key> | put <key> <value> | scan [<limit>] | exit"),
         }
     }
 }
