@@ -1,15 +1,29 @@
-use rocksdb::{DB, IteratorMode};
-use std::io::{self, Write};
+use rocksdb::{DB, IteratorMode, Options};
 use std::env;
+use std::io::{self, Write};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read DB path from command-line argument
     let db_path = env::args().nth(1).unwrap_or_else(|| {
-        eprintln!("Usage: rocksdb_cli <path/to/db>");
+        eprintln!("Usage: rocksdb_cli <path/to/db> [--rw]");
         std::process::exit(1);
     });
 
-    let db = DB::open_default(db_path).expect("Failed to open DB");
+    let mut read_write = false;
+
+    if env::args().len() > 2 {
+        let second_arg = env::args().nth(2).unwrap();
+        if second_arg == "--rw" {
+            read_write = true;
+        }
+    }
+
+    // default to read-only
+    let mut db = DB::open_for_read_only(&Options::default(), db_path.clone(), false)
+        .expect("Failed to open DB in read-only mode");
+    if read_write {
+        db = DB::open_default(db_path).expect("Failed to open DB in read-write mode");
+    }
 
     loop {
         print!("rocksdb> ");
@@ -28,6 +42,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Err(e) => println!("Error: {}", e),
             },
             ["put", key, value] => {
+                if !read_write {
+                    println!("Error: Cannot put because the database was not opened in read-write mode");
+                    continue;
+                }
                 if let Err(e) = db.put(key, value) {
                     println!("Error: {}", e);
                 }
